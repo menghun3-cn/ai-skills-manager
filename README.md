@@ -2,6 +2,13 @@
 
 一个中心化的 AI IDE skills 管理器，解决配置碎片化问题。通过强大的软链接同步机制，实现一处编写，多处使用。
 
+## 截图
+
+![skills](screenshot/skills.png)
+![tools](screenshot/tools.png)
+![market](screenshot/markets.png)
+![settings](screenshot/settings.png)
+
 ## 功能特性
 
 - **Skills 管理**：统一管理本地 skills，支持创建、编辑、删除、搜索、批量管理
