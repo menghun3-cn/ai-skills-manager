@@ -10,6 +10,7 @@ export interface Settings {
   language: string;
   githubToken?: string;
   enabledDataSources?: string[];
+  proxyUrl?: string;
 }
 
 export interface SkillBinding {

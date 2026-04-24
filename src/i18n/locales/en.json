@@ -82,7 +82,15 @@
       "total": "Total",
       "global": "Global",
       "project": "Project"
-    }
+    },
+    "importGithub": "Import from GitHub",
+    "importFromGithub": "Import Skill from GitHub",
+    "importFromGithubDesc": "Enter GitHub repository URL to import the Skill",
+    "githubRepoUrl": "GitHub Repository URL",
+    "githubRepoPlaceholder": "https://github.com/owner/repo or owner/repo",
+    "githubUrlHint": "Supported formats: https://github.com/owner/repo, github.com/owner/repo, or owner/repo",
+    "invalidGithubUrl": "Invalid GitHub repository URL",
+    "import": "Import"
   },
   "tools": {
     "title": "Tools",
@@ -174,6 +182,9 @@
     "cleanupOnDisableDesc": "Automatically cleanup tool links when disabling tool",
     "syncNotification": "Sync Notifications",
     "syncNotificationDesc": "Notify you of sync results",
+    "proxyUrl": "Proxy",
+    "proxyUrlDesc": "Configure HTTP/HTTPS proxy for network requests (e.g., http://127.0.0.1:7890)",
+    "proxyUrlPlaceholder": "http://127.0.0.1:7890",
     "githubToken": "GitHub Token",
     "githubTokenPlaceholder": "Paste your GitHub Personal Access Token",
     "githubTokenDesc": "Used to increase GitHub API rate limit",

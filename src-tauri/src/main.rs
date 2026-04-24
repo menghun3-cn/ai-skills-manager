@@ -60,6 +60,10 @@ fn main() {
             batch_sync_skills_to_tools,
             batch_remove_skills_from_tools,
             check_admin_privileges,
+            import_skill_from_github,
+            discover_skills_from_github_repo,
+            import_skills_from_github_repo,
+            update_github_token,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

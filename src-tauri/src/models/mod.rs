@@ -14,6 +14,8 @@ pub struct Settings {
     pub language: String,
     #[serde(default)]
     pub enabled_data_sources: Option<Vec<String>>,
+    #[serde(default)]
+    pub proxy_url: Option<String>,
 }
 
 impl Default for Settings {
@@ -32,6 +34,7 @@ impl Default for Settings {
                 "awesome-claude-skills".to_string(),
                 "skills-sh".to_string(),
             ]),
+            proxy_url: None,
         }
     }
 }

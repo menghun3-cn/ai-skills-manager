@@ -13,11 +13,13 @@ const defaultSettings: Settings = {
   fontSize: 14,
   language: "zh-CN",
   enabledDataSources: ["awesome-claude-skills", "skills-sh"],
+  proxyUrl: undefined,
 };
 
 export const useSettingsStore = defineStore("settings", () => {
   const settings = ref<Settings>({ ...defaultSettings });
   const configPath = ref<string>("");
+  const githubToken = ref<string>("");
 
   const theme = computed(() => settings.value.theme);
   const language = computed(() => settings.value.language);
@@ -25,8 +27,9 @@ export const useSettingsStore = defineStore("settings", () => {
   async function loadSettings() {
     try {
       const { invoke } = await import("@tauri-apps/api/core");
-      const result = await invoke<Settings>("get_config");
-      settings.value = { ...defaultSettings, ...result };
+      const result = await invoke<{ settings: Settings; githubToken?: string }>("get_config");
+      settings.value = { ...defaultSettings, ...result.settings };
+      githubToken.value = result.githubToken || "";
       const pathResult = await invoke<string>("get_app_dir_path");
       configPath.value = pathResult;
     } catch (error) {
@@ -65,9 +68,20 @@ export const useSettingsStore = defineStore("settings", () => {
     saveSettings({ language: lang });
   }
 
+  async function saveGithubToken(token: string | undefined) {
+    try {
+      const { invoke } = await import("@tauri-apps/api/core");
+      githubToken.value = token || "";
+      await invoke("update_github_token", { token });
+    } catch (error) {
+      console.error("Failed to save GitHub token:", error);
+    }
+  }
+
   return {
     settings,
     configPath,
+    githubToken,
     theme,
     language,
     loadSettings,
@@ -75,5 +89,6 @@ export const useSettingsStore = defineStore("settings", () => {
     applyTheme,
     setTheme,
     setLanguage,
+    saveGithubToken,
   };
 });

@@ -505,6 +505,113 @@ textarea::placeholder {
   color: #2a7a9a;
 }
 
+/* ============================================
+   组件类 - 输入框
+   ============================================ */
+
+.input {
+  width: 100% !important;
+  padding: var(--spacing-md) var(--spacing-lg) !important;
+  font-family: var(--font-body) !important;
+  font-size: var(--text-base) !important;
+  line-height: 1.5 !important;
+  color: var(--color-text-primary) !important;
+  background-color: var(--color-surface) !important;
+  border: 2px solid var(--color-border) !important;
+  border-radius: var(--radius-md) !important;
+  transition: all var(--transition-fast) var(--ease-out) !important;
+  outline: none !important;
+  box-sizing: border-box !important;
+  min-height: 44px !important;
+}
+
+.input:hover {
+  border-color: var(--cream-400) !important;
+}
+
+.input:focus {
+  border-color: var(--peach-300) !important;
+  box-shadow: 0 0 0 4px var(--peach-100) !important;
+}
+
+.input:disabled {
+  opacity: 0.6 !important;
+  cursor: not-allowed !important;
+  background-color: var(--color-surface-subtle) !important;
+}
+
+.input::placeholder {
+  color: var(--color-text-tertiary) !important;
+}
+
+/* ============================================
+   组件类 - 按钮
+   ============================================ */
+
+.btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: var(--spacing-sm) !important;
+  padding: var(--spacing-md) var(--spacing-lg) !important;
+  font-family: var(--font-body) !important;
+  font-size: var(--text-base) !important;
+  font-weight: 500 !important;
+  line-height: 1.5 !important;
+  text-decoration: none !important;
+  border: none !important;
+  border-radius: var(--radius-md) !important;
+  cursor: pointer !important;
+  transition: all var(--transition-fast) var(--ease-out) !important;
+  outline: none !important;
+  white-space: nowrap !important;
+  box-sizing: border-box !important;
+  min-height: 44px !important;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--peach-300) !important;
+  outline-offset: 2px !important;
+}
+
+.btn:disabled {
+  opacity: 0.5 !important;
+  cursor: not-allowed !important;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--peach-300), var(--peach-400)) !important;
+  color: white !important;
+  box-shadow: var(--shadow-soft) !important;
+  border: none !important;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, var(--peach-400), var(--peach-500)) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: var(--shadow-card) !important;
+}
+
+.btn-primary:active:not(:disabled) {
+  transform: scale(0.96) !important;
+  box-shadow: var(--shadow-pressed) !important;
+}
+
+.btn-secondary {
+  background-color: var(--color-surface) !important;
+  color: var(--color-text-primary) !important;
+  border: 2px solid var(--color-border) !important;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: var(--color-surface-subtle) !important;
+  border-color: var(--cream-400) !important;
+}
+
+.btn-secondary:active:not(:disabled) {
+  transform: scale(0.96) !important;
+}
+
 /* 减少动效偏好 */
 @media (prefers-reduced-motion: reduce) {
   *,

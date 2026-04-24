@@ -82,7 +82,15 @@
       "total": "总数",
       "global": "全局",
       "project": "项目"
-    }
+    },
+    "importGithub": "从 GitHub 导入",
+    "importFromGithub": "从 GitHub 导入 Skill",
+    "importFromGithubDesc": "输入 GitHub 仓库地址，导入其中的 Skill",
+    "githubRepoUrl": "GitHub 仓库地址",
+    "githubRepoPlaceholder": "https://github.com/owner/repo 或 owner/repo",
+    "githubUrlHint": "支持格式: https://github.com/owner/repo、github.com/owner/repo 或 owner/repo",
+    "invalidGithubUrl": "无效的 GitHub 仓库地址",
+    "import": "导入"
   },
   "tools": {
     "title": "工具",
@@ -174,6 +182,9 @@
     "cleanupOnDisableDesc": "禁用工具时，自动清理该工具的链接，避免资源浪费",
     "syncNotification": "同步通知",
     "syncNotificationDesc": "同步时，通知你同步结果",
+    "proxyUrl": "代理设置",
+    "proxyUrlDesc": "配置 HTTP/HTTPS 代理地址用于网络请求（如 http://127.0.0.1:7890）",
+    "proxyUrlPlaceholder": "http://127.0.0.1:7890",
     "githubToken": "GitHub Token",
     "githubTokenPlaceholder": "粘贴你的 GitHub Personal Access Token",
     "githubTokenDesc": "用于提高 GitHub API 限额，减少刷新与预览失败",

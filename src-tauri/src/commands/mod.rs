@@ -3,8 +3,24 @@ use crate::services;
 use tauri::AppHandle;
 
 #[tauri::command]
-pub async fn get_config(app: AppHandle) -> Result<Config, String> {
-    services::config::load_config(&app).await
+pub async fn get_config(app: AppHandle) -> Result<serde_json::Value, String> {
+    let config = services::config::load_config(&app).await?;
+    
+    // 返回设置和 GitHub Token
+    let result = serde_json::json!({
+        "settings": config.settings,
+        "githubToken": config.github_token,
+    });
+    
+    Ok(result)
+}
+
+#[tauri::command]
+pub async fn update_github_token(app: AppHandle, token: Option<String>) -> Result<(), String> {
+    let mut config = services::config::load_config(&app).await?;
+    config.github_token = token;
+    services::config::save_config(&app, &config).await?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -164,6 +180,34 @@ pub async fn browse_directory(app: AppHandle) -> Result<String, String> {
         Some(path) => Ok(path.to_string()),
         None => Err("No folder selected".to_string()),
     }
+}
+
+#[tauri::command]
+pub async fn import_skill_from_github(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+) -> Result<bool, String> {
+    services::skills::import_skill_from_github(&app, &owner, &repo).await
+}
+
+#[tauri::command]
+pub async fn discover_skills_from_github_repo(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+) -> Result<Vec<services::skills::DiscoveredSkill>, String> {
+    services::skills::discover_skills_from_github_repo(&app, &owner, &repo).await
+}
+
+#[tauri::command]
+pub async fn import_skills_from_github_repo(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    selected_paths: Vec<String>,
+) -> Result<Vec<String>, String> {
+    services::skills::import_skills_from_github_repo(&app, &owner, &repo, selected_paths).await
 }
 
 #[tauri::command]

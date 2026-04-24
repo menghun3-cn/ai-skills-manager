@@ -8,11 +8,12 @@ import SkillEditor from "@/components/skills/SkillEditor.vue";
 import SkillDetail from "@/components/skills/SkillDetail.vue";
 import SkillManageDialog from "@/components/skills/SkillManageDialog.vue";
 import CreateSkillDialog from "@/components/skills/CreateSkillDialog.vue";
+import ImportGithubSkillDialog from "@/components/skills/ImportGithubSkillDialog.vue";
 import BatchActions from "@/components/skills/BatchActions.vue";
 
 import EmptyState from "@/components/common/EmptyState.vue";
 import PageHeader from "@/components/common/PageHeader.vue";
-import { Plus, RefreshCw, LayoutGrid, Search, Package } from "lucide-vue-next";
+import { Plus, RefreshCw, LayoutGrid, Search, Package, Github } from "lucide-vue-next";
 
 const { t } = useI18n();
 const skillsStore = useSkillsStore();
@@ -20,6 +21,7 @@ const skillsStore = useSkillsStore();
 const showEditor = ref(false);
 const editingSkill = ref<string | null>(null);
 const showCreateDialog = ref(false);
+const showImportGithubDialog = ref(false);
 const batchMode = ref(false);
 const showDetail = ref(false);
 const showManage = ref(false);
@@ -124,6 +126,13 @@ async function handleRefresh() {
           {{ t("skills.refresh") }}
         </button>
         <button
+          @click="showImportGithubDialog = true"
+          class="btn btn-secondary"
+        >
+          <Github class="h-4 w-4" :stroke-width="1.5" />
+          {{ t("skills.importGithub") }}
+        </button>
+        <button
           @click="handleCreate"
           class="btn btn-primary"
         >
@@ -219,6 +228,12 @@ async function handleRefresh() {
       :skill="selectedSkill"
       :show="showManage"
       @close="handleCloseManage"
+    />
+
+    <ImportGithubSkillDialog
+      v-if="showImportGithubDialog"
+      @close="showImportGithubDialog = false"
+      @imported="showImportGithubDialog = false"
     />
 
   </div>

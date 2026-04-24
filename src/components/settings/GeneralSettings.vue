@@ -29,6 +29,14 @@ function updateCleanupOnDisable(value: boolean) {
 function updateSyncNotification(value: boolean) {
   settingsStore.saveSettings({ syncNotifications: value });
 }
+
+function updateProxyUrl(value: string) {
+  settingsStore.saveSettings({ proxyUrl: value || undefined });
+}
+
+function updateGithubToken(value: string) {
+  settingsStore.saveGithubToken(value || undefined);
+}
 </script>
 
 <template>
@@ -128,6 +136,44 @@ function updateSyncNotification(value: boolean) {
           <Check v-if="settingsStore.settings.syncNotifications" class="check-icon" :stroke-width="3" />
         </span>
       </button>
+    </div>
+
+    <!-- 代理设置 -->
+    <div class="setting-card">
+      <div class="setting-header">
+        <label class="setting-label">{{ t("settings.proxyUrl") }}</label>
+        <p class="setting-desc">{{ t("settings.proxyUrlDesc") }}</p>
+      </div>
+      <div class="input-group">
+        <div class="input-wrapper">
+          <input
+            :value="settingsStore.settings.proxyUrl || ''"
+            @input="updateProxyUrl(($event.target as HTMLInputElement).value)"
+            type="text"
+            :placeholder="t('settings.proxyUrlPlaceholder')"
+            class="custom-input"
+          />
+        </div>
+      </div>
+    </div>
+
+    <!-- GitHub Token 设置 -->
+    <div class="setting-card">
+      <div class="setting-header">
+        <label class="setting-label">{{ t("settings.githubToken") }}</label>
+        <p class="setting-desc">{{ t("settings.githubTokenDesc") }}</p>
+      </div>
+      <div class="input-group">
+        <div class="input-wrapper">
+          <input
+            :value="settingsStore.githubToken || ''"
+            @input="updateGithubToken(($event.target as HTMLInputElement).value)"
+            type="password"
+            :placeholder="t('settings.githubTokenPlaceholder')"
+            class="custom-input"
+          />
+        </div>
+      </div>
     </div>
   </div>
 </template>
