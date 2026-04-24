@@ -2,7 +2,7 @@
 import { computed } from "vue";
 import { useI18n } from "vue-i18n";
 import { useSettingsStore } from "@/stores/settings";
-import { FolderOpen, Check } from "lucide-vue-next";
+import { FolderOpen, Check, ExternalLink } from "lucide-vue-next";
 
 const { t } = useI18n();
 const settingsStore = useSettingsStore();
@@ -161,7 +161,18 @@ function updateGithubToken(value: string) {
     <div class="setting-card">
       <div class="setting-header">
         <label class="setting-label">{{ t("settings.githubToken") }}</label>
-        <p class="setting-desc">{{ t("settings.githubTokenDesc") }}</p>
+        <p class="setting-desc">
+          {{ t("settings.githubTokenDesc") }}
+          <a
+            href="https://github.com/settings/tokens"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="github-token-link"
+          >
+            <ExternalLink class="link-icon" :stroke-width="1.5" />
+            配置 GitHub Personal Access Token
+          </a>
+        </p>
       </div>
       <div class="input-group">
         <div class="input-wrapper">
@@ -389,5 +400,27 @@ function updateGithubToken(value: string) {
 
 .toggle-switch.active:hover {
   box-shadow: 0 0 0 4px rgba(125, 212, 168, 0.2);
+}
+
+/* GitHub Token 链接 */
+.github-token-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  margin-left: 8px;
+  transition: all var(--transition-fast) var(--ease-out);
+}
+
+.github-token-link:hover {
+  color: var(--peach-500);
+  text-decoration: underline;
+}
+
+.link-icon {
+  width: 14px;
+  height: 14px;
 }
 </style>
