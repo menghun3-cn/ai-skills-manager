@@ -3,6 +3,8 @@ use crate::services::config::{get_skills_dir, load_config};
 use chrono::Utc;
 use std::fs;
 use std::path::PathBuf;
+use std::pin::Pin;
+use std::future::Future;
 use tauri::AppHandle;
 use walkdir::WalkDir;
 
@@ -307,58 +309,25 @@ pub async fn import_skill_from_github(
     // 创建 skill 目录
     fs::create_dir_all(&skill_dir).map_err(|e| e.to_string())?;
 
-    // 下载 skill 文件
-    // 由于 GitHub API 有速率限制，我们尝试下载一些常见的 skill 文件
-    // 而不是通过 API 获取目录列表
-    let files_to_download: Vec<String> = vec![
-        "SKILL.md".to_string(),
-        "README.md".to_string(),
-        "rules.md".to_string(),
-        "prompt.md".to_string(),
-        "system.md".to_string(),
-    ];
+    // 使用 GitHub API 递归下载 skill 目录中的所有文件
+    let config = crate::services::config::load_config(app).await.unwrap_or_default();
+    let download_result = download_directory_recursive(
+        client.clone(),
+        owner.to_string(),
+        repo.to_string(),
+        default_branch.to_string(),
+        source_path.clone(),
+        skill_dir.clone(),
+        config.github_token.clone(),
+    ).await;
 
-    let mut downloaded_count = 0;
-
-    for file_name in files_to_download {
-        // 跳过不需要的文件
-        if file_name == "README.md"
-            || file_name == "metadata.json"
-            || file_name.starts_with('_')
-            || file_name.starts_with('.')
-        {
-            continue;
-        }
-
-        let file_url = if source_path.is_empty() {
-            format!(
-                "https://raw.githubusercontent.com/{}/{}/{}/{}",
-                owner, repo, default_branch, file_name
-            )
-        } else {
-            format!(
-                "https://raw.githubusercontent.com/{}/{}/{}/{}/{}",
-                owner, repo, default_branch, source_path, file_name
-            )
-        };
-
-        let file_resp = client.get(&file_url).send().await;
-
-        if let Ok(resp) = file_resp {
-            if resp.status().is_success() {
-                if let Ok(bytes) = resp.bytes().await {
-                    let file_path = skill_dir.join(&file_name);
-                    if fs::write(&file_path, &bytes).is_ok() {
-                        downloaded_count += 1;
-                    }
-                }
-            }
-        }
-    }
-
-    if downloaded_count == 0 {
+    if download_result.count == 0 {
         // 如果没有下载任何文件，删除创建的目录
         let _ = fs::remove_dir_all(&skill_dir);
+        // 返回具体的错误信息
+        if let Some(error) = download_result.error_message {
+            return Err(format!("下载失败: {}", error));
+        }
         return Err("未能下载任何文件".to_string());
     }
 
@@ -743,6 +712,17 @@ pub async fn import_skills_from_github_repo(
     repo: &str,
     selected_paths: Vec<String>,
 ) -> Result<Vec<String>, String> {
+    import_skills_from_github_repo_with_options(app, owner, repo, selected_paths, false).await
+}
+
+/// 从 GitHub 导入指定的 skills（带选项）
+pub async fn import_skills_from_github_repo_with_options(
+    app: &AppHandle,
+    owner: &str,
+    repo: &str,
+    selected_paths: Vec<String>,
+    force: bool,
+) -> Result<Vec<String>, String> {
     // 加载配置获取代理设置
     let config = crate::services::config::load_config(app).await.unwrap_or_default();
     let proxy_url = config.settings.proxy_url.as_deref();
@@ -805,6 +785,7 @@ pub async fn import_skills_from_github_repo(
 
     // 导入所有找到的 skills
     let mut imported_skills: Vec<String> = Vec::new();
+    let is_single_skill = found_skills.len() == 1;
 
     for (skill_name, skill_md_content, source_path) in found_skills {
         // 规范化 skill 名称
@@ -812,8 +793,18 @@ pub async fn import_skills_from_github_repo(
         let skill_dir = skills_dir.join(&skill_name_normalized);
 
         if skill_dir.exists() {
-            log::warn!("Skill '{}' 已经存在，跳过", skill_name);
-            continue;
+            if force {
+                // 强制覆盖：删除旧的 skill 目录
+                log::info!("Skill '{}' 已存在，强制覆盖", skill_name);
+                if let Err(e) = fs::remove_dir_all(&skill_dir) {
+                    log::error!("删除旧 skill 目录失败: {}", e);
+                    return Err(format!("删除旧 skill '{}' 失败: {}", skill_name, e));
+                }
+            } else {
+                log::warn!("Skill '{}' 已经存在", skill_name);
+                // 返回特定的错误信息，让前端提示用户是否覆盖
+                return Err(format!("SKILL_EXISTS:{}", skill_name));
+            }
         }
 
         // 创建 skill 目录
@@ -822,51 +813,29 @@ pub async fn import_skills_from_github_repo(
             continue;
         }
 
-        // 下载 skill 文件
-        let files_to_download: Vec<String> = vec![
-            "SKILL.md".to_string(),
-            "README.md".to_string(),
-            "rules.md".to_string(),
-            "prompt.md".to_string(),
-            "system.md".to_string(),
-        ];
+        // 使用 GitHub API 递归下载 skill 目录中的所有文件
+        let download_result = download_directory_recursive(
+            client.clone(),
+            owner.to_string(),
+            repo.to_string(),
+            default_branch.to_string(),
+            source_path.clone(),
+            skill_dir.clone(),
+            config.github_token.clone(),
+        ).await;
 
-        let mut downloaded_count = 0;
-
-        for file_name in &files_to_download {
-            if file_name == "README.md" || file_name.starts_with('_') || file_name.starts_with('.')
-            {
+        if download_result.count == 0 {
+            let _ = fs::remove_dir_all(&skill_dir);
+            // 如果有错误信息，记录并收集错误
+            if let Some(error) = download_result.error_message {
+                log::error!("导入 skill '{}' 失败: {}", skill_name, error);
+                // 如果只有一个 skill 被选中，立即返回错误
+                if is_single_skill {
+                    return Err(format!("导入 skill '{}' 失败: {}", skill_name, error));
+                }
+                // 否则继续尝试其他 skills
                 continue;
             }
-
-            let file_url = if source_path.is_empty() {
-                format!(
-                    "https://raw.githubusercontent.com/{}/{}/{}/{}",
-                    owner, repo, default_branch, file_name
-                )
-            } else {
-                format!(
-                    "https://raw.githubusercontent.com/{}/{}/{}/{}/{}",
-                    owner, repo, default_branch, source_path, file_name
-                )
-            };
-
-            let file_resp = client.get(&file_url).send().await;
-
-            if let Ok(resp) = file_resp {
-                if resp.status().is_success() {
-                    if let Ok(bytes) = resp.bytes().await {
-                        let file_path = skill_dir.join(&file_name);
-                        if fs::write(&file_path, &bytes).is_ok() {
-                            downloaded_count += 1;
-                        }
-                    }
-                }
-            }
-        }
-
-        if downloaded_count == 0 {
-            let _ = fs::remove_dir_all(&skill_dir);
             continue;
         }
 
@@ -953,4 +922,268 @@ fn parse_skill_md_frontmatter(content: &str) -> (Option<String>, Option<String>)
     } else {
         (None, None)
     }
+}
+
+/// 下载结果
+#[derive(Debug)]
+struct DownloadResult {
+    count: usize,
+    error_message: Option<String>,
+}
+
+/// 递归下载 GitHub 目录中的所有文件
+fn download_directory_recursive(
+    client: reqwest::Client,
+    owner: String,
+    repo: String,
+    branch: String,
+    source_path: String,
+    target_dir: PathBuf,
+    github_token: Option<String>,
+) -> Pin<Box<dyn Future<Output = DownloadResult> + Send>> {
+    Box::pin(async move {
+        let mut downloaded_count = 0;
+        let mut error_message = None;
+        
+        // 构建 API URL
+        let api_url = if source_path.is_empty() {
+            format!(
+                "https://api.github.com/repos/{}/{}/contents?ref={}",
+                owner, repo, branch
+            )
+        } else {
+            format!(
+                "https://api.github.com/repos/{}/{}/contents/{}?ref={}",
+                owner, repo, source_path, branch
+            )
+        };
+        
+        let mut request = client
+            .get(&api_url)
+            .header("User-Agent", "AI-Skills-Manager");
+        
+        // 如果配置了 GitHub Token，使用它进行认证以避免速率限制
+        if let Some(ref token) = github_token {
+            request = request.header("Authorization", format!("Bearer {}", token));
+        }
+        
+        log::info!("Fetching directory contents from: {}", api_url);
+        
+        let resp = request.send().await;
+        
+        if let Ok(resp) = resp {
+            let status = resp.status();
+            log::info!("GitHub API response status: {}", status);
+            
+            if status.is_success() {
+                let text = resp.text().await.unwrap_or_default();
+                log::debug!("GitHub API response: {}", text);
+                
+                match serde_json::from_str::<Vec<serde_json::Value>>(&text) {
+                    Ok(contents) => {
+                        log::info!("Found {} items in directory", contents.len());
+                        
+                        if contents.is_empty() {
+                            error_message = Some(format!("目录 '{}' 为空", source_path));
+                            log::warn!("{}", error_message.as_ref().unwrap());
+                        }
+                        
+                        for item in contents {
+                            if let Some(item_type) = item.get("type").and_then(|t| t.as_str()) {
+                                if item_type == "file" {
+                                    // 下载文件
+                                    if let Some(download_url) = item.get("download_url").and_then(|u| u.as_str()) {
+                                        if let Some(file_name) = item.get("name").and_then(|n| n.as_str()) {
+                                            // 跳过不需要的文件
+                                            if file_name == ".ai-skills-manager.json" || file_name.starts_with('_') {
+                                                continue;
+                                            }
+                                            
+                                            let file_resp = client.get(download_url).send().await;
+                                            if let Ok(resp) = file_resp {
+                                                if resp.status().is_success() {
+                                                    if let Ok(bytes) = resp.bytes().await {
+                                                        let file_path = target_dir.join(file_name);
+                                                        if fs::write(&file_path, &bytes).is_ok() {
+                                                            downloaded_count += 1;
+                                                            log::info!("Downloaded file: {:?}", file_path);
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                } else if item_type == "dir" {
+                                    // 递归处理子目录
+                                    if let Some(dir_name) = item.get("name").and_then(|n| n.as_str()) {
+                                        // 跳过不需要的目录
+                                        if dir_name.starts_with('.') || dir_name == "node_modules" || dir_name == "target" {
+                                            log::info!("Skipping directory: {}", dir_name);
+                                            continue;
+                                        }
+                                        
+                                        let sub_dir_path = target_dir.join(dir_name);
+                                        log::info!("Processing subdirectory: {} -> {:?}", dir_name, sub_dir_path);
+                                        
+                                        if fs::create_dir_all(&sub_dir_path).is_ok() {
+                                            let sub_source_path = if source_path.is_empty() {
+                                                dir_name.to_string()
+                                            } else {
+                                                format!("{}/{}", source_path, dir_name)
+                                            };
+                                            
+                                            log::info!("Recursing into: {}", sub_source_path);
+                                            
+                                            let sub_result = download_directory_recursive(
+                                                client.clone(),
+                                                owner.clone(),
+                                                repo.clone(),
+                                                branch.clone(),
+                                                sub_source_path,
+                                                sub_dir_path,
+                                                github_token.clone(),
+                                            ).await;
+                                            
+                                            log::info!("Subdirectory {} downloaded {} files", dir_name, sub_result.count);
+                                            downloaded_count += sub_result.count;
+                                        } else {
+                                            log::error!("Failed to create subdirectory: {:?}", sub_dir_path);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Err(e) => {
+                        error_message = Some(format!("解析 GitHub API 响应失败: {}", e));
+                        log::error!("{}", error_message.as_ref().unwrap());
+                    }
+                }
+            } else {
+                let status_code = status.as_u16();
+                error_message = Some(format!(
+                    "GitHub API 返回错误状态码: {} - {}",
+                    status_code,
+                    get_status_code_message(status_code)
+                ));
+                log::error!("{}", error_message.as_ref().unwrap());
+                
+                // API 调用失败，尝试备用方案：直接下载 SKILL.md
+                let fallback_count = download_skill_files_fallback(
+                    &client,
+                    &owner,
+                    &repo,
+                    &branch,
+                    &source_path,
+                    &target_dir,
+                ).await;
+                
+                if fallback_count > 0 {
+                    downloaded_count = fallback_count;
+                    error_message = None; // 备用方案成功，清除错误
+                }
+            }
+        } else {
+            error_message = Some("无法连接到 GitHub API，请检查网络连接".to_string());
+            log::error!("{}", error_message.as_ref().unwrap());
+            
+            // API 调用失败，尝试备用方案
+            let fallback_count = download_skill_files_fallback(
+                &client,
+                &owner,
+                &repo,
+                &branch,
+                &source_path,
+                &target_dir,
+            ).await;
+            
+            if fallback_count > 0 {
+                downloaded_count = fallback_count;
+                error_message = None; // 备用方案成功，清除错误
+            }
+        }
+        
+        // 如果 API 调用成功但下载的文件数为 0，设置错误信息
+        if downloaded_count == 0 && error_message.is_none() {
+            error_message = Some(format!(
+                "未能从 '{}' 下载任何文件，请检查目录是否存在文件",
+                source_path
+            ));
+            log::warn!("{}", error_message.as_ref().unwrap());
+        }
+        
+        DownloadResult {
+            count: downloaded_count,
+            error_message,
+        }
+    })
+}
+
+/// 获取 HTTP 状态码的说明信息
+fn get_status_code_message(status_code: u16) -> &'static str {
+    match status_code {
+        401 => "未授权，请检查 GitHub Token 是否有效",
+        403 => "请求被禁止（可能是 API 速率限制），请配置 GitHub Token 或稍后再试",
+        404 => "未找到指定的仓库或路径",
+        500 => "GitHub 服务器内部错误",
+        502 => "GitHub 网关错误",
+        503 => "GitHub 服务不可用",
+        _ => "未知错误",
+    }
+}
+
+/// 备用方案：直接下载常见的 skill 文件
+async fn download_skill_files_fallback(
+    client: &reqwest::Client,
+    owner: &str,
+    repo: &str,
+    branch: &str,
+    source_path: &str,
+    target_dir: &PathBuf,
+) -> usize {
+    let mut downloaded_count = 0;
+    
+    let files_to_download = vec![
+        "SKILL.md",
+        "README.md",
+        "rules.md",
+        "prompt.md",
+        "system.md",
+    ];
+    
+    for file_name in files_to_download {
+        if file_name == "README.md" || file_name.starts_with('_') || file_name.starts_with('.') {
+            continue;
+        }
+        
+        let file_url = if source_path.is_empty() {
+            format!(
+                "https://raw.githubusercontent.com/{}/{}/{}/{}",
+                owner, repo, branch, file_name
+            )
+        } else {
+            format!(
+                "https://raw.githubusercontent.com/{}/{}/{}/{}/{}",
+                owner, repo, branch, source_path, file_name
+            )
+        };
+        
+        log::info!("Trying fallback download: {}", file_url);
+        
+        let file_resp = client.get(&file_url).send().await;
+        
+        if let Ok(resp) = file_resp {
+            if resp.status().is_success() {
+                if let Ok(bytes) = resp.bytes().await {
+                    let file_path = target_dir.join(file_name);
+                    if fs::write(&file_path, &bytes).is_ok() {
+                        downloaded_count += 1;
+                        log::info!("Downloaded file via fallback: {:?}", file_path);
+                    }
+                }
+            }
+        }
+    }
+    
+    downloaded_count
 }

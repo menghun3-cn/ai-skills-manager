@@ -7,10 +7,41 @@ mod services;
 use commands::*;
 use log::info;
 use services::config::init_app_data;
+use std::path::PathBuf;
+
+fn get_log_dir() -> PathBuf {
+    // 获取应用安装目录（exe 所在目录）
+    let exe_path = std::env::current_exe().expect("Failed to get current exe path");
+    let exe_dir = exe_path.parent().expect("Failed to get exe directory");
+    
+    // 在安装目录下创建 logs 文件夹
+    let log_dir = exe_dir.join("logs");
+    
+    // 确保 logs 目录存在
+    if !log_dir.exists() {
+        let _ = std::fs::create_dir_all(&log_dir);
+    }
+    
+    log_dir
+}
 
 fn main() {
+    let log_dir = get_log_dir();
+    
     tauri::Builder::default()
-        .plugin(tauri_plugin_log::Builder::new().build())
+        .plugin(
+            tauri_plugin_log::Builder::new()
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::LogDir { file_name: None },
+                ))
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::Folder { path: log_dir, file_name: None },
+                ))
+                .target(tauri_plugin_log::Target::new(
+                    tauri_plugin_log::TargetKind::Stdout,
+                ))
+                .build(),
+        )
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
@@ -63,6 +94,7 @@ fn main() {
             import_skill_from_github,
             discover_skills_from_github_repo,
             import_skills_from_github_repo,
+            import_skills_from_github_repo_force,
             update_github_token,
         ])
         .run(tauri::generate_context!())

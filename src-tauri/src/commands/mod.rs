@@ -211,6 +211,16 @@ pub async fn import_skills_from_github_repo(
 }
 
 #[tauri::command]
+pub async fn import_skills_from_github_repo_force(
+    app: AppHandle,
+    owner: String,
+    repo: String,
+    selected_paths: Vec<String>,
+) -> Result<Vec<String>, String> {
+    services::skills::import_skills_from_github_repo_with_options(&app, &owner, &repo, selected_paths, true).await
+}
+
+#[tauri::command]
 pub fn check_admin_privileges() -> Result<bool, String> {
     #[cfg(windows)]
     {
